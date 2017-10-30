@@ -45,7 +45,10 @@
                 
             }];
         } else {
-            [DDAlertView dd_showAlertViewWithTitle:@"提示3" message:@"打死你的骄傲可能大家卡萨诺的空间那上打死你的骄傲可能大家卡萨诺的空间那上打死你的骄傲可能大家卡萨" cancelButtonTitle:@"取消" otherButtonTitles:@[@"确定"] style:[DDAlertViewManager defaultManager] handler:^(DDAlertView *alertView, NSInteger buttonIndex) {
+            DDAlertViewManager *style = [[DDAlertViewManager alloc] init];
+            style.cancelTitleColor = [UIColor redColor];
+            
+            [DDAlertView dd_showAlertViewWithTitle:@"提示3" message:@"打死你的骄傲可能大家卡萨诺的空间那上打死你的骄傲可能大家卡萨诺的空间那上打死你的骄傲可能大家卡萨" cancelButtonTitle:@"取消" otherButtonTitles:@[@"确定"] style:style handler:^(DDAlertView *alertView, NSInteger buttonIndex) {
                 
             }];
         }
