@@ -22,6 +22,7 @@ static UIImage *DDImageWithColor(UIColor *color) {
 
 
 @interface DDAlertView ()
+@property (nonatomic, weak) UIView *relationView;
 @property (nonatomic, strong) UIView *containView;
 
 @property (nonatomic, copy) NSString *title;
@@ -80,6 +81,11 @@ static UIImage *DDImageWithColor(UIColor *color) {
     if (self.superview) {
         return;
     }
+    [[DDAlertViewManager shareManager].alerts addObject:self];
+    if ([DDAlertViewManager shareManager].alerts.count > 1) {
+        [self setRelationView:view];
+        return;
+    }
     if (view) {
         [view addSubview:self];
         [self showAnimation];
@@ -87,18 +93,14 @@ static UIImage *DDImageWithColor(UIColor *color) {
 }
 
 - (void)show {
-    if (self.superview) {
-        return;
-    }
     UIWindow *window = [UIApplication sharedApplication].delegate.window;
-    [window addSubview:self];
-    [self showAnimation];
+    [self showInView:window];
 }
 
 #pragma mark - Private Method
 
 - (void)configueViews {
-    self.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
+    self.backgroundColor = [UIColor clearColor];
     self.frame = CGRectMake(0, 0, [self screenWidth], [self screenHeight]);
     CGFloat width = self.style.minWidth;
     UIImage *pressedImage = DDImageWithColor(self.style.buttonPressedColor);
@@ -142,7 +144,7 @@ static UIImage *DDImageWithColor(UIColor *color) {
     CGFloat messageHeight = 0;
     
     if (self.customView) {
-        offY += self.containView.frame.size.height;
+        offY += self.customView.frame.size.height;
         offY += 5;
         
     } else if (self.message.length) {
@@ -170,8 +172,10 @@ static UIImage *DDImageWithColor(UIColor *color) {
         }
         offY += buttonHeight;
         offY = MIN(offY, self.style.maxHeight);
-        messageHeight = MAX(offY - buttonHeight - 5 - messageView.frame.origin.y, 0);
+        messageHeight = ceil(MAX(offY - buttonHeight - 5 - messageView.frame.origin.y, 0));
         messageView.frame = (CGRect){messageView.frame.origin, {messageView.frame.size.width, messageHeight}};
+        messageView.scrollEnabled = messageView.contentSize.height > messageView.frame.size.height;
+        
         offY = CGRectGetMaxY(messageView.frame) + 5;
     }
     
@@ -251,19 +255,47 @@ static UIImage *DDImageWithColor(UIColor *color) {
 }
 
 - (void)cancelButtonClicked:(UIButton *)btn {
+    if (self.handle) {
+        self.handle(self, 0);
+    }
     [self hide];
 }
 
 - (void)buttonClick:(UIButton *)btn {
+    NSInteger index = btn.tag;
+    if (self.handle) {
+        self.handle(self, index);
+    }
     [self hide];
 }
 
 - (void)showAnimation {
+    self.containView.alpha = 0.f;
+    
+    [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.2];
+        self.containView.alpha = 1.f;
+    } completion:nil];
 }
 
 - (void)hide {
-    self.backgroundColor = [UIColor clearColor];
-    [self removeFromSuperview];
+    [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.backgroundColor = [UIColor clearColor];
+        self.containView.alpha = 0.f;
+
+    } completion:^(BOOL finished) {
+        [[DDAlertViewManager shareManager].alerts removeObject:self];
+        [self removeFromSuperview];
+        
+        if ([DDAlertViewManager shareManager].alerts.count) {
+            DDAlertView *alertView = [[DDAlertViewManager shareManager].alerts firstObject];
+            UIView *view = [alertView relationView];
+            if (view) {
+                [view addSubview:alertView];
+                [alertView showAnimation];
+            }
+        }
+    }];
 }
 
 - (CGFloat)screenWidth {
@@ -289,8 +321,20 @@ static UIImage *DDImageWithColor(UIColor *color) {
 
 
 
+@interface DDAlertViewManager ()
+
+@end
 
 @implementation DDAlertViewManager
+
++ (instancetype)shareManager {
+    static DDAlertViewManager *manager = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        manager = [[DDAlertViewManager alloc] init];
+    });
+    return manager;
+}
 
 + (instancetype)defaultManager {
     return [[DDAlertViewManager alloc] init];
@@ -302,7 +346,7 @@ static UIImage *DDImageWithColor(UIColor *color) {
         self.titleHeight = 44;
         self.minWidth = 280;
         self.maxWidth = 300;
-        self.maxHeight = 300;
+        self.maxHeight = [UIScreen mainScreen].bounds.size.height * 7/8;
         self.buttonItemHeight = 44;
         
         self.titleFont = [UIFont boldSystemFontOfSize:17];
@@ -317,6 +361,13 @@ static UIImage *DDImageWithColor(UIColor *color) {
         self.buttonPressedColor = [[UIColor blackColor] colorWithAlphaComponent:0.1];
     }
     return self;
+}
+
+- (NSMutableArray *)alerts {
+    if (!_alerts) {
+        _alerts = [NSMutableArray array];
+    }
+    return _alerts;
 }
 
 @end

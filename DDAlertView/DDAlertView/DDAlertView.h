@@ -34,6 +34,10 @@
 
 @interface DDAlertViewManager : NSObject
 
++ (instancetype)shareManager;
+
+@property (nonatomic, strong) NSMutableArray *alerts;
+
 + (instancetype)defaultManager;
 
 @property (nonatomic, assign) CGFloat minWidth;
